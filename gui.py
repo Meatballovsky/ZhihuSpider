@@ -18,12 +18,14 @@ VERSION = "1.0.0"
 
 if getattr(sys, 'frozen', False):
     BASE_DIR = os.path.dirname(sys.executable)
+    RESOURCE_DIR = sys._MEIPASS
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    RESOURCE_DIR = BASE_DIR
 
 CONFIG_PATH = os.path.join(BASE_DIR, 'config.json')
-ICON_PATH = os.path.join(BASE_DIR, 'icon.ico')
-ICON_PNG_PATH = os.path.join(BASE_DIR, 'icon.png')
+ICON_PATH = os.path.join(RESOURCE_DIR, 'icon.ico')
+ICON_PNG_PATH = os.path.join(RESOURCE_DIR, 'icon.png')
 
 DEFAULT_OUTPUT_DIR = os.path.join(
     os.path.expanduser("~"), "Desktop", "知乎回答"
