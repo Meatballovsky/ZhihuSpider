@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+*.spec
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Runtime generated
+config.json
+output/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# PyInstaller
+*.manifest

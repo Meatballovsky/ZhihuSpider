@@ -1,0 +1,9 @@
+{
+  "targets": [
+    "https://www.zhihu.com/people/你的目标用户ID/answers"
+  ],
+  "output_dir": "./output",
+  "page_delay_min": 8,
+  "page_delay_max": 15,
+  "max_answers": 0
+}
