@@ -9,7 +9,7 @@ import threading
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from DrissionPage import Chromium, ChromiumOptions
-from crawler import crawl_answers, _interruptible_sleep
+from crawler import crawl_content, CONTENT_TYPES, _interruptible_sleep
 
 
 class LogRedirector(io.TextIOBase):
@@ -38,13 +38,13 @@ class CrawlWorker(QThread):
     paused = pyqtSignal()
     resumed = pyqtSignal()
 
-    def __init__(self, targets, output_dir, delay_range, max_answers,
-                 browser_path=None, parent=None):
+    def __init__(self, targets, output_dir, delay_range,
+                 content_limits=None, browser_path=None, parent=None):
         super().__init__(parent)
         self.targets = targets
         self.output_dir = output_dir
         self.delay_range = delay_range
-        self.max_answers = max_answers
+        self.content_limits = content_limits or {'answers': 0}
         self.browser_path = browser_path
         self._stop_flag = False
         self._pause_event = threading.Event()
@@ -183,10 +183,16 @@ class CrawlWorker(QThread):
             self.error.emit("未找到有效的目标用户，请检查输入。")
             return
 
+        type_descs = []
+        for ct, max_items in self.content_limits.items():
+            cfg = CONTENT_TYPES.get(ct)
+            if cfg:
+                desc = f"{cfg['label']}({'全部' if max_items == 0 else f'{max_items}条'})"
+                type_descs.append(desc)
+
         print("=" * 50)
         print(f"目标用户: {', '.join(user_ids)}")
-        count_desc = '全部' if self.max_answers == 0 else f'每人最多 {self.max_answers} 条'
-        print(f"爬取数量: {count_desc}")
+        print(f"提取内容: {', '.join(type_descs)}")
         print(f"翻页间隔: {self.delay_range[0]}-{self.delay_range[1]} 秒")
         print(f"输出目录: {self.output_dir}")
         print("=" * 50)
@@ -220,18 +226,32 @@ class CrawlWorker(QThread):
             print(f"[{i}/{len(user_ids)}] 开始爬取用户: {user_id}")
             print(f"{'#' * 50}")
 
-            user_output = os.path.join(self.output_dir, user_id)
-            saved = crawl_answers(
-                tab=tab,
-                user_id=user_id,
-                output_dir=user_output,
-                max_answers=self.max_answers,
-                delay_range=self.delay_range,
-                stop_check=self._is_stopped,
-                pause_event=self._pause_event,
-            )
-            total_saved += saved
-            self.progress.emit(total_saved, 0)
+            ct_items = list(self.content_limits.items())
+            for ct_idx, (ct, max_items) in enumerate(ct_items):
+                if self._stop_flag:
+                    break
+                cfg = CONTENT_TYPES.get(ct)
+                if not cfg:
+                    continue
+
+                type_output = os.path.join(self.output_dir, user_id, cfg['label'])
+                saved = crawl_content(
+                    tab=tab,
+                    user_id=user_id,
+                    output_dir=type_output,
+                    content_type=ct,
+                    max_items=max_items,
+                    delay_range=self.delay_range,
+                    stop_check=self._is_stopped,
+                    pause_event=self._pause_event,
+                )
+                total_saved += saved
+                self.progress.emit(total_saved, 0)
+
+                if ct_idx < len(ct_items) - 1 and not self._stop_flag:
+                    print("切换内容类型前等待 5 秒...")
+                    if _interruptible_sleep(5, self._is_stopped, self._pause_event):
+                        break
 
             if self._stop_flag:
                 was_terminated = True
@@ -244,11 +264,11 @@ class CrawlWorker(QThread):
                     break
 
         if was_terminated:
-            print(f"\n已终止。本次共保存 {total_saved} 条回答。")
+            print(f"\n已终止。本次共保存 {total_saved} 条内容。")
             self.terminated.emit()
         else:
             print(f"\n{'=' * 50}")
-            print(f"全部完成！共爬取 {len(user_ids)} 个用户，保存 {total_saved} 条回答")
+            print(f"全部完成！共爬取 {len(user_ids)} 个用户，保存 {total_saved} 条内容")
             print(f"输出目录: {self.output_dir}")
             print("=" * 50)
             self.finished_ok.emit(total_saved)

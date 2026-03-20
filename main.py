@@ -1,7 +1,7 @@
 """
-ZhihuSpider - 知乎用户回答导出工具
+ZhihuSpider - 知乎用户内容导出工具
 
-一键导出知乎用户的全部回答，保存为 Markdown 文件。
+一键导出知乎用户的回答、文章、想法，保存为 Markdown 文件。
 
 使用方法:
   GUI 模式（默认）: python main.py
@@ -11,7 +11,7 @@ GitHub: https://github.com/lemoabc/ZhihuSpider
 """
 import sys
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 
 def cli_main():
@@ -22,7 +22,7 @@ def cli_main():
     import time
 
     from DrissionPage import Chromium, ChromiumOptions
-    from crawler import crawl_answers
+    from crawler import crawl_content, CONTENT_TYPES
 
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     sys.stderr.reconfigure(encoding='utf-8', errors='replace')
@@ -38,10 +38,13 @@ def cli_main():
         "output_dir": "./output",
         "page_delay_min": 8,
         "page_delay_max": 15,
-        "max_answers": 0,
+        "content_settings": {
+            "answers":  {"enabled": True, "max": 0},
+            "articles": {"enabled": True, "max": 0},
+            "pins":     {"enabled": True, "max": 0},
+        },
     }
 
-    # 加载配置
     if not os.path.exists(CONFIG_PATH):
         print(f"[!] 未找到配置文件，已自动生成: {CONFIG_PATH}")
         print("    请编辑 config.json 中的 targets 填入目标用户 URL，然后重新运行。\n")
@@ -62,7 +65,19 @@ def cli_main():
         output_base = os.path.normpath(os.path.join(BASE_DIR, output_base))
     delay_min = config.get('page_delay_min', 8)
     delay_max = config.get('page_delay_max', 15)
-    max_answers = config.get('max_answers', 0)
+
+    cs = config.get('content_settings', {'answers': {'enabled': True, 'max': 0}})
+    content_limits = {}
+    for ct, settings in cs.items():
+        if ct in CONTENT_TYPES and settings.get('enabled', True):
+            content_limits[ct] = settings.get('max', 0)
+    if not content_limits:
+        content_limits = {'answers': 0}
+
+    type_descs = []
+    for ct, max_items in content_limits.items():
+        label = CONTENT_TYPES[ct]['label']
+        type_descs.append(f"{label}({'全部' if max_items == 0 else f'{max_items}条'})")
 
     def extract_user_id(url: str) -> str:
         match = re.search(r'zhihu\.com/people/([^/?#]+)', url)
@@ -82,7 +97,7 @@ def cli_main():
     print("=" * 60)
     print(f"  ZhihuSpider v{__version__} (CLI)")
     print(f"  目标用户: {', '.join(user_ids)}")
-    print(f"  爬取数量: {'全部' if max_answers == 0 else f'每人最多 {max_answers} 条'}")
+    print(f"  提取内容: {', '.join(type_descs)}")
     print(f"  翻页间隔: {delay_min}-{delay_max} 秒")
     print(f"  输出目录: {output_base}")
     print("=" * 60)
@@ -152,18 +167,27 @@ def cli_main():
         print(f"\n{'#' * 60}")
         print(f"  [{i}/{len(user_ids)}] 开始爬取用户: {user_id}")
         print(f"{'#' * 60}")
-        user_output_dir = os.path.join(output_base, user_id)
-        saved = crawl_answers(
-            tab=tab, user_id=user_id, output_dir=user_output_dir,
-            max_answers=max_answers, delay_range=(delay_min, delay_max),
-        )
-        total_saved += saved
+
+        ct_items = list(content_limits.items())
+        for ct_idx, (ct, max_items) in enumerate(ct_items):
+            cfg = CONTENT_TYPES[ct]
+            type_output_dir = os.path.join(output_base, user_id, cfg['label'])
+            saved = crawl_content(
+                tab=tab, user_id=user_id, output_dir=type_output_dir,
+                content_type=ct, max_items=max_items,
+                delay_range=(delay_min, delay_max),
+            )
+            total_saved += saved
+            if ct_idx < len(ct_items) - 1:
+                print("\n  切换内容类型前等待 5 秒...")
+                time.sleep(5)
+
         if i < len(user_ids):
             print("\n  切换用户前等待 10 秒...")
             time.sleep(10)
 
     print(f"\n{'=' * 60}")
-    print(f"  全部完成！共爬取 {len(user_ids)} 个用户，保存 {total_saved} 条回答")
+    print(f"  全部完成！共爬取 {len(user_ids)} 个用户，保存 {total_saved} 条内容")
     print(f"  输出目录: {output_base}")
     print(f"{'=' * 60}")
     browser.quit()

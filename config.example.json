@@ -5,5 +5,9 @@
   "output_dir": "./output",
   "page_delay_min": 8,
   "page_delay_max": 15,
-  "max_answers": 0
+  "content_settings": {
+    "answers":  { "enabled": true, "max": 0 },
+    "articles": { "enabled": true, "max": 0 },
+    "pins":     { "enabled": true, "max": 0 }
+  }
 }
