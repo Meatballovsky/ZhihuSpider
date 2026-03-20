@@ -58,21 +58,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           name: ZhihuSpider ${{ github.ref_name }}
-          body: |
-            ## ZhihuSpider ${{ github.ref_name }}
-
-            ### 下载使用
-
-            1. 下载下方 `ZhihuSpider.exe`
-            2. 双击运行，输入目标用户链接，点击开始
-            3. 首次使用需在弹出的浏览器中登录知乎
-
-            > 无需安装 Python，无需安装依赖，开箱即用。
-
-            ### 系统要求
-
-            - Windows 10 / 11
-            - 任意 Chromium 内核浏览器（Chrome / Edge / 360 / QQ浏览器）
+          body_path: release_notes.md
           files: dist/ZhihuSpider.exe
           draft: false
           prerelease: false
+          make_latest: true
