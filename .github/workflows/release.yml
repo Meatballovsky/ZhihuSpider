@@ -1,0 +1,78 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Build EXE
+        run: |
+          pyinstaller `
+            --onefile `
+            --windowed `
+            --name ZhihuSpider `
+            --icon=icon.ico `
+            --hidden-import DrissionPage `
+            --hidden-import lxml `
+            --hidden-import bs4 `
+            --collect-data DrissionPage `
+            --add-data "icon.ico;." `
+            --add-data "icon.png;." `
+            main.py
+
+      - name: Verify build
+        run: |
+          if (Test-Path dist\ZhihuSpider.exe) {
+            $size = (Get-Item dist\ZhihuSpider.exe).Length / 1MB
+            Write-Output "Build OK - Size: $([math]::Round($size, 2)) MB"
+          } else {
+            Write-Error "Build failed"
+            exit 1
+          }
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          $ver = "${{ github.ref_name }}" -replace '^v', ''
+          echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ZhihuSpider ${{ github.ref_name }}
+          body: |
+            ## ZhihuSpider ${{ github.ref_name }}
+
+            ### 下载使用
+
+            1. 下载下方 `ZhihuSpider.exe`
+            2. 双击运行，输入目标用户链接，点击开始
+            3. 首次使用需在弹出的浏览器中登录知乎
+
+            > 无需安装 Python，无需安装依赖，开箱即用。
+
+            ### 系统要求
+
+            - Windows 10 / 11
+            - 任意 Chromium 内核浏览器（Chrome / Edge / 360 / QQ浏览器）
+          files: dist/ZhihuSpider.exe
+          draft: false
+          prerelease: false
