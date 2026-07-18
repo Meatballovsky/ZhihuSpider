@@ -1,12 +1,12 @@
 """
 ================================================================================
-# Agent Project Metadata
+# 🤖 AGENT PROJECT METADATA
 # Project ID: zhihubf
-# Registry:      ~/agent_projects/projects.json
-# Manifest:      ~/agent_projects/zhihubf/metadata.json
-# Version:      1.0.3
+# Registry:     ~/agent_projects/projects.json
+# Manifest:     ~/agent_projects/zhihubf/metadata.json
+# Version:         3.2.0
 # Status:      Stable
-# Owner:       User
+# Owner:       Agent/User
 ================================================================================
 
 Zhihu Backup Crawler - Entry Point
@@ -60,124 +60,145 @@ EDGE_PROFILE_DIR = _CONFIG.get("edge_profile_dir", os.path.join(PROJECT_DIR, "ed
 
 def print_help():
     help_text = """
-Zhihu Backup Crawler - 
-==================================
+Zhihu Crawler - Universal multi-user crawler
+==============================================
 
-This tool crawls all answers and articles from the Zhihu user 
-(Username: "") and saves them as Markdown files locally.
+This tool crawls answers and articles from ANY Zhihu user
+and saves them as Markdown files locally.
 
 Key features:
-    - Incremental crawl (skips already-crawled items via .index_*.json)
-    - Unique filenames: {title}_{answer_id}.md
-    - Cross-platform (macOS, Linux, Windows)
-    - YAML frontmatter in each Markdown file
+     - Incremental crawl (skips already-crawled items via .index_*.json)
+     - Unique filenames: {title}_{answer_id}.md
+     - Cross-platform (macOS, Linux, Windows)
+     - YAML frontmatter in each Markdown file
+     - Multi-user: specify any Zhihu username
 
 Usage:
     source venv/bin/activate
-    python run.py [options]
-
-Options:
-    --help, -h            Show this help message
-    --output DIR          Output directory (default: ~/Desktop/zhihubf/)
-    --cookie FILE         Cookie JSON file path
-    --only-answers        Only crawl answers section
-    --only-articles       Only crawl articles section
-    --browser PATH        Path to Chrome/Edge binary (auto-detect if omitted)
-    --cdp-port PORT       CDP port for cookie injection (default: 9222)
-    --no-cookie-inject    Skip cookie injection step
+    python run.py --user <USERNAME>            # crawl all content
+    python run.py --user <USERNAME> --help     Show help
+    python run.py --user <USERNAME> --only-answers     # answers only
+    python run.py --user <USERNAME> --only-articles    # articles only
+    python run.py --user <USERNAME> --output ./my_backup
+    python run.py --user <USERNAME> --cookie ./cookies.json
+    python run.py --user <USERNAME> --no-cookie-inject   # cookies already in browser
 
 Examples:
-    python run.py
-    python run.py --output ./my_backup --cookie ./cookies.json
-    python run.py --only-articles
-    python run.py --no-cookie-inject  # cookies already in browser
+    python run.py --user exampleuser
+    python run.py --user exampleuser --only-articles
+    python run.py --user exampleuser --output ./backup --max 100
+    python run.py --user exampleuser --no-cookie-inject
 
 Notes:
-    - Ensure Edge is running on the CDP port before crawling.
-    - First crawl may take longer as it downloads all pages.
-    - Subsequent crawls only fetch new content (incremental).
+     - Cookies must be exported from Edge/Chrome first (see cookie_injector.py)
+     - First crawl may take longer as it downloads all pages
+     - Subsequent crawls only fetch new content (incremental)
 """
     print(help_text)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Zhihu Backup Crawler - ",
+        description="Zhihu Crawler - Universal multi-user crawler",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
+     )
     parser.add_argument(
-        "--output",
-        type=str,
-        default=ZHIHU_OUTPUT,
-        help="Output directory (default: " + ZHIHU_OUTPUT + ")",
-    )
+         "--user", "-u",
+         type=str,
+         required=True,
+         help="Zhihu username (e.g., exampleuser)",
+     )
     parser.add_argument(
-        "--cookie",
-        type=str,
-        default=COOKIE_FILE,
-        help="Cookie JSON file path (default: " + COOKIE_FILE + ")",
-    )
+         "--output", "-o",
+         type=str,
+         default=None,
+         help="Output directory (default: ~/Desktop/zhihubf/<username>)",
+     )
     parser.add_argument(
-        "--only-answers",
-        action="store_true",
-        help="Only crawl answers section",
-    )
+         "--cookie", "-c",
+         type=str,
+         default=None,
+         help="Cookie JSON file path",
+     )
     parser.add_argument(
-        "--only-articles",
-        action="store_true",
-        help="Only crawl articles section",
-    )
+         "--only-answers",
+         action="store_true",
+         help="Only crawl answers section",
+     )
     parser.add_argument(
-        "--browser",
-        type=str,
-        default=None,
-        help="Path to Chrome/Edge binary (auto-detect if omitted)",
-    )
+         "--only-articles",
+         action="store_true",
+         help="Only crawl articles section",
+     )
     parser.add_argument(
-        "--cdp-port",
-        type=int,
-        default=CDP_PORT,
-        help="CDP port (default: 9222, from agent_edge_launcher)",
-    )
+         "--browser",
+         type=str,
+         default=None,
+         help="Path to Chrome/Edge binary (auto-detect if omitted)",
+     )
     parser.add_argument(
-        "--no-cookie-inject",
-        action="store_true",
-        help="Skip cookie injection step (cookies already in browser)",
-    )
+         "--cdp-port",
+         type=int,
+         default=CDP_PORT,
+         help=f"CDP port (default: {CDP_PORT})",
+     )
+    parser.add_argument(
+         "--no-cookie-inject",
+         action="store_true",
+         help="Skip cookie injection step (cookies already in browser)",
+     )
 
     args = parser.parse_args()
 
-    # Handle help-only mode
-    if not args.cookie and not args.browser and args.only_answers and args.only_articles:
-        print_help()
-        return 0
+     # Determine output directory
+    if args.output:
+        output_dir = args.output
+    else:
+        output_dir = os.path.join(
+            os.path.expanduser("~"),
+            "Desktop",
+            "zhihubf",
+            args.user
+        )
 
-    # Step 1: Cookie injection (unless skipped)
-    # Cookie injection is now handled inside crawler.py via WebPage.cookies API.
-    # If you want to inject manually first, use:
-    #   python cookie_injector.py
+     # Cookie injection (unless skipped or cookie file already provided)
+    if not args.no_cookie_inject and args.cookie:
+        print(f"  Injecting cookies from {args.cookie}...")
+        from cookie_injector import inject_cookies
+        injected = inject_cookies(args.cookie, args.cdp_port)
+        print(f"  Injected {len(injected)} cookies")
+    elif not args.no_cookie_inject:
+        print(f"  No cookie file specified. Skipping cookie injection.")
+        print(f"  Or use: --cookie path/to/cookies.json")
 
-    # Step 2: Import crawler modules
+     # Step 2: Import crawler module
     from crawler import crawl_content
-    from browser_finder import find_browser
 
-    # Find browser binary
-    browser_path = args.browser or find_browser()
-    
-    # Step 3: Crawl
+     # Step 3: Crawl
     try:
         if args.only_answers:
-            from crawler import USER_ID
-            count = crawl_content(kind="answer", output_dir=args.output, cookie_file=args.cookie)
+            count = crawl_content(
+                kind="answer", user_id=args.user,
+                output_dir=output_dir, cookie_file=args.cookie or "",
+            )
             print(f"\nAnswer crawl complete: {count} new answers crawled")
         elif args.only_articles:
-            count = crawl_content(kind="article", output_dir=args.output, cookie_file=args.cookie)
+            count = crawl_content(
+                kind="article", user_id=args.user,
+                output_dir=output_dir, cookie_file=args.cookie or "",
+            )
             print(f"\nArticle crawl complete: {count} new articles crawled")
         else:
-            print("\n=== Crawling answers...")
-            ans = crawl_content(kind="answer", output_dir=args.output, cookie_file=args.cookie)
-            print(f"=== Crawling articles...")
-            art = crawl_content(kind="article", output_dir=args.output, cookie_file=args.cookie)
+            print(f"\n=== Crawling answers for user: {args.user} ===")
+            ans = crawl_content(
+                kind="answer", user_id=args.user,
+                output_dir=output_dir, cookie_file=args.cookie or "",
+            )
+            print(f"\n=== Crawling articles for user: {args.user} ===")
+            art = crawl_content(
+                kind="article", user_id=args.user,
+                output_dir=output_dir, cookie_file=args.cookie or "",
+            )
             print(f"\nCrawl complete: {ans} answers, {art} articles")
     except KeyboardInterrupt:
         print("\nCrawl interrupted by user.")

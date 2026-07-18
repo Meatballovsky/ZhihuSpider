@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
+# =============================================================================
+# 🤖 AGENT PROJECT METADATA
+# Project ID: zhihubf
+# Registry:             ~/agent_projects/projects.json
+# Manifest:              ~/agent_projects/zhihubf/metadata.json
+# Version:                 3.2.0
+# Status:          Stable
+# Owner:           Agent/User
+# =============================================================================
+
 # All-in-one: Launch Edge + run crawl + keep Edge alive during execution
 # This prevents macOS from killing Edge between launch and crawl
 
@@ -17,16 +27,16 @@ sleep 2
 # Step 2: Launch Edge with macOS open command
 echo "🚀 Launching Edge..."
 open -a 'Microsoft Edge' --args \
-      --user-data-dir="$EDGE_PROFILE" \
-      --remote-debugging-port=$EDGE_PORT \
-      --no-first-run \
-      --no-default-browser-check \
-      --disable-background-updates \
-      --disable-component-update \
-      --disable-background-timer-throttling \
-      --disable-renderer-backgrounding \
-      --disable-ipc-fuzzing \
-      --disable-backgrounding-occluded-windows
+       --user-data-dir="$EDGE_PROFILE" \
+       --remote-debugging-port=$EDGE_PORT \
+       --no-first-run \
+       --no-default-browser-check \
+       --disable-background-updates \
+       --disable-component-update \
+       --disable-background-timer-throttling \
+       --disable-renderer-backgrounding \
+       --disable-ipc-fuzzing \
+       --disable-backgrounding-occluded-windows
 sleep 15
 
 # Step 3: Verify CDP
@@ -38,8 +48,8 @@ echo "✅ CDP ready"
 
 # Step 4: Run crawl
 cd "$SCRIPT_DIR"
-echo "📝 Running crawler..."
-python3 run.py
+echo "📝 Running crawler (use --user to specify target)..."
+python3 run.py "$@"
 
 echo ""
 echo "🔒 Keeping Edge alive for 5 minutes..."

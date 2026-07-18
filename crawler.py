@@ -1,27 +1,28 @@
 """
 ================================================================================
-# Agent Project Manifest
+# 🤖 AGENT PROJECT METADATA
 # Project ID: zhihubf
-# Registry:          ~/agent_projects/projects.json
-# Manifest:           ~/agent_projects/zhihubf/metadata.json
-# Version:              3.0.0
-# Status:         Stable
-# Owner:          User
+# Registry:             ~/agent_projects/projects.json
+# Manifest:              ~/agent_projects/zhihubf/metadata.json
+# Version:                 3.2.0
+# Status:          Stable
+# Owner:           Agent/User
 ================================================================================
 
-crawler.py - Zhihu Crawler (HTTP requests edition, v3.0).
+crawler.py - Zhihu Crawler (HTTP requests edition, v3.2).
 
 Key changes from v2.x (DrissionPage listener edition):
     - Uses DrissionPage ONLY for initial cookie extraction
     - Uses `requests` + `Session` for all API crawling (reliable, no browser hang)
     - Keeps YAML frontmatter, incremental index, and file naming conventions
     - Adds retry, rate limiting, resumable pagination, and progress tracking
+    - Generic: no hardcoded username, configurable via config file
 
 Dependencies:
-requests >= 2.31.0     (pip install requests)
-DrissionPage >= 4.1.0    (only for cookie extraction if needed)
-beautifulsoup4 >= 4.12.0
-lxml >= 5.0
+    requests >= 2.31.0      (pip install requests)
+    DrissionPage >= 4.1.0     (only for cookie extraction if needed)
+    beautifulsoup4 >= 4.12.0
+    lxml >= 5.0
 
 Configuration:
     - Create config.local.json (copied from config.json) with your personal paths.
@@ -30,8 +31,9 @@ Configuration:
 
 Prerequisites:
     1. Create config.local.json from config.json and set your paths
-    2. Edge Agent Profile logged into zhihu.com
-    3. Export cookies to the configured cookie_file
+    2. Login to zhihu.com in Edge or Chrome
+    3. Export cookies: python cookie_injector.py --export-cookies cookies.json
+    4. Run: python crawler.py --user <USERNAME>
 """
 from __future__ import annotations
 
@@ -50,11 +52,11 @@ from typing import Any, Optional, Callable
 # ---------------------------------------------------------------------------
 _CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.local.json")
 if not os.path.isfile(_CONFIG_PATH):
-     _CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+    _CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 with open(_CONFIG_PATH, "r", encoding="utf-8") as _f:
-     _CONFIG = json.load(_f)
-USER_ID = _CONFIG.get("username", "[YOUR_USERNAME]")
-COOKIE_FILE = _CONFIG.get("cookie_file", "cookies.json")
+    _CONFIG = json.load(_f)
+CONFIG_COOKIE_FILE = _CONFIG.get("cookie_file", "cookies.json")
+CONFIG_CDP_PORT = _CONFIG.get("cdp_port", 9222)
 
 CONTENT_CONFIGS = {
     "answer": {
@@ -70,6 +72,7 @@ CONTENT_CONFIGS = {
         },
         "file_prefix": "回答",
         "url_base": "https://www.zhihu.com/question/{question_id}/answer/{answer_id}",
+        "index_file": ".index_answer.json",
     },
     "article": {
         "label": "文章",
@@ -83,6 +86,7 @@ CONTENT_CONFIGS = {
         },
         "file_prefix": "文章",
         "url_base": "https://zhuanlan.zhihu.com/p/{article_id}",
+        "index_file": ".index_article.json",
     },
 }
 
@@ -97,7 +101,7 @@ def load_cookies_from_json(cookie_path: str) -> dict:
     return {c["name"]: c["value"] for c in raw_list}
 
 
-def cookies_to_requests_session(cookies: dict, session: Optional[requests.Session] = None) -> requests.Session:
+def cookies_to_requests_session(cookies: dict, session=None) -> requests.Session:
     """Load cookies into a requests Session, preserving all headers."""
     if session is None:
         session = requests.Session()
@@ -105,10 +109,10 @@ def cookies_to_requests_session(cookies: dict, session: Optional[requests.Sessio
         session.cookies.set(name, value, domain=".zhihu.com", path="/")
     session.headers.update({
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                        "AppleWebKit/537.36 "
-                        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                      "AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "application/json",
-        "Referer": f"https://www.zhihu.com/people/{USER_ID}/",
+        "Referer": "https://www.zhihu.com/",
         "x-requested-with": "fetch",
         "origin": "https://www.zhihu.com",
         "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
@@ -381,19 +385,21 @@ def crawl_single_page(session: requests.Session, url: str, params: dict, kind: s
 
 
 def crawl_content(kind: str = "answer",
+                user_id: str = "",
                 output_dir: str = "./output",
-                cookie_file: str = COOKIE_FILE,
+                cookie_file: str = "",
                 max_items: int = 0,
                 stop_check: Optional[Callable] = None,
                 pages_to_fetch: int = 0
-                ) -> int:
+                 ) -> int:
     """
-    Main crawl loop.
+    Main crawl loop for a given user.
 
     Args:
         kind: 'answer' or 'article'
+        user_id: Zhihu username (required; overrides config.json)
         output_dir: Directory to save markdown files
-        cookie_file: Path to cookie JSON file
+        cookie_file: Path to cookie JSON file (empty = use config default)
         max_items: Max items to crawl (0 = all)
         stop_check: Optional callback that returns True to abort
         pages_to_fetch: If > 0, limit to this many pages
@@ -401,6 +407,12 @@ def crawl_content(kind: str = "answer",
     Returns:
         Number of items crawled and saved
     """
+    # Use config defaults for empty params
+    if not cookie_file:
+        cookie_file = CONFIG_COOKIE_FILE
+    if not user_id:
+        raise ValueError("user_id is required. Pass --user <USERNAME> from run.py")
+
     if not os.path.exists(cookie_file):
         print(f"[!] Cookie file not found: {cookie_file}")
         return 0
@@ -410,7 +422,6 @@ def crawl_content(kind: str = "answer",
     session = cookies_to_requests_session(cookies_dict)
 
     cfg = CONTENT_CONFIGS[kind]
-    uid = USER_ID
     total_crawled = 0
     seen_ids = set()
 
@@ -424,7 +435,7 @@ def crawl_content(kind: str = "answer",
     total_existing = len(seen_ids)
 
     print(f"\n{'='*60}")
-    print(f"  {cfg['label'].upper()} CRAWL")
+    print(f"  User: {user_id} | {cfg['label'].upper()} CRAWL")
     print(f"{'='*60}")
     print(f"Cookie file: {cookie_file}")
     print(f"Existing index: {total_existing} items")
@@ -458,8 +469,8 @@ def crawl_content(kind: str = "answer",
         params["offset"] = offset
         params["limit"] = 20
 
-        # Substitute {uid} placeholder in URL (e.g., {uid} -> )
-        api_url = cfg["api_url"].format(uid=uid, kind=kind)
+        # Substitute {uid} placeholder in URL (e.g., {uid} -> the specified user)
+        api_url = cfg["api_url"].format(uid=user_id, kind=kind)
         items, total, is_end = crawl_single_page(session, api_url, params, kind)
 
         if total > 0 and total_crawled == 0:

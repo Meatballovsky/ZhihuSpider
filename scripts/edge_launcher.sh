@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
+# =============================================================================
+# 🤖 AGENT PROJECT METADATA
+# Project ID: zhihubf
+# Registry:            ~/agent_projects/projects.json
+# Manifest:             ~/agent_projects/zhihubf/metadata.json
+# Version:                3.2.0
+# Status:          Stable
+# Owner:           User
+# =============================================================================
+
 # Edge Agent Profile Launcher - Persistent background process manager
 # Usage: ./edge_launcher.sh [start|stop|status|restart]
 

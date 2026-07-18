@@ -1,12 +1,12 @@
 """
 ================================================================================
-# Agent Project Metadata
+# 🤖 AGENT PROJECT METADATA
 # Project ID: zhihubf
-# Registry:      ~/agent_projects/projects.json
-# Manifest:      ~/agent_projects/zhihubf/metadata.json
-# Version:       1.0.3
-# Status:       Stable
-# Owner:        User
+# Registry:     ~/agent_projects/projects.json
+# Manifest:     ~/agent_projects/zhihubf/metadata.json
+# Version:         3.2.0
+# Status:      Stable
+# Owner:       Agent/User
 ================================================================================
 
 Cookie injection module for Zhihu Crawler -- CDP via WebSocket protocol.
