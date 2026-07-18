@@ -53,5 +53,8 @@ config.local.json
 output/
 CRAWL_PROGRESS.md
 
+# Agent metadata (local only, never commit)
+metadata.json
+
 # Logs
 *.log
