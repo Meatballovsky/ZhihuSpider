@@ -315,10 +315,6 @@ def _save_output_file(item: dict, output_dir: str) -> Optional[str]:
         f.write(content)
     return basename
 
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(content)
-    return basename
-
 
 # ---------------------------------------------------------------------------
 # Main crawl engine

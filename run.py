@@ -158,29 +158,27 @@ def main():
     #   python cookie_injector.py
 
     # Step 2: Import crawler modules
-    from crawler import crawl_user
+    from crawler import crawl_content
     from browser_finder import find_browser
 
     # Find browser binary
     browser_path = args.browser or find_browser()
     
     # Step 3: Crawl
-    kwargs = {
-        "output_dir": args.output,
-        "cookie_path": args.cookie if os.path.isfile(args.cookie) else "",
-        "browser_path": browser_path,
-    }
-
     try:
         if args.only_answers:
-            result = crawl_user(**kwargs)
-            print(f"\nAnswer crawl complete: {result['answers']} new answers crawled")
+            from crawler import USER_ID
+            count = crawl_content(kind="answer", output_dir=args.output, cookie_file=args.cookie)
+            print(f"\nAnswer crawl complete: {count} new answers crawled")
         elif args.only_articles:
-            result = crawl_user(**kwargs)
-            print(f"\nArticle crawl complete: {result['articles']} new articles crawled")
+            count = crawl_content(kind="article", output_dir=args.output, cookie_file=args.cookie)
+            print(f"\nArticle crawl complete: {count} new articles crawled")
         else:
-            result = crawl_user(**kwargs)
-            print(f"\nCrawl complete: {result['answers']} answers, {result['articles']} articles")
+            print("\n=== Crawling answers...")
+            ans = crawl_content(kind="answer", output_dir=args.output, cookie_file=args.cookie)
+            print(f"=== Crawling articles...")
+            art = crawl_content(kind="article", output_dir=args.output, cookie_file=args.cookie)
+            print(f"\nCrawl complete: {ans} answers, {art} articles")
     except KeyboardInterrupt:
         print("\nCrawl interrupted by user.")
         return 1
