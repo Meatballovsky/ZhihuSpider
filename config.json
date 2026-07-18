@@ -1,0 +1,13 @@
+{
+     "_instructions": "Copy this file to config.local.json and edit with your personal paths. config.local.json is gitignored.",
+     "username": "[YOUR_USERNAME]",
+     "cookie_file": "cookies.json",
+     "output_dir": "output",
+     "cdp_port": 9222,
+     "edge_profile_dir": "edge_agent_profile",
+     "request_delay": 1.0,
+     "request_delay_max": 3.0,
+     "request_delay_min": 0.5,
+     "retry_max": 3,
+     "retry_delay": 5
+}

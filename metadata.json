@@ -1,0 +1,26 @@
+{
+    "project_name": "zhihubf",
+    "display_name": "Zhihu User Backup () - Crawler",
+    "version": "1.0.0",
+    "status": "stable",
+    "owner": "user",
+    "paths": {
+         "entry_script": "run.py",
+              "source_data": "~/Desktop/zhihubf",
+              "cookies_path": "/tmp/zhihubf_cookies.json",
+              "venv": "./venv"
+    },
+    "depends_on": [],
+    "provides": [
+         "zhihu_content_backup",
+         "raw_markdown_corpus",
+         "incremental_crawler_v2.1.0"
+    ],
+    "history": [
+         {
+             "date": "2026-07-16",
+             "version": "1.0.0",
+             "action": "Initial crawl framework setup with DrissionPage-based crawler, cookie injection, and index system"
+         }
+    ]
+}
