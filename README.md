@@ -11,14 +11,48 @@
 
 ZhihuSpider is a lightweight crawler for [Zhihu](https://www.zhihu.com) (知乎) content. It supports:
 
+- **Two engines** — `nav_crawler.py` (v4, browser-navigation, recommended) and `run.py` (v3 HTTP engine, see status below)
 - **Multi-user** — specify any Zhihu username (`--user <USERNAME>`)
 - **Incremental crawling** — skips already-crawled items via `.index_*.json` files
 - **Unique filenames** — `{title}_{id}.md` avoids collision between items with similar titles
 - **YAML frontmatter** — Chinese field names (标题/作者/日期/链接/类型/标签/摘要)
-- **Clean HTTP implementation** — uses `requests` for API crawling, no browser overhead
 - **Externalized configuration** — all personal paths stored in `config.local.json` (gitignored)
 
-## Quick Start
+> ⚠️ **2026-09 anti-bot status**: Zhihu now enforces `x-zse-93/96` signing on XHR-type
+> requests — plain `requests` and in-page `fetch` both get `403 code 40362`.
+> **Browser top-level navigation** to the API URL is unsigned and returns pure JSON.
+> The v3 HTTP engine (`run.py`/`crawler.py`) is expected to be blocked; use the v4
+> engine below.
+
+## v4 Engine (recommended): browser-navigation crawler
+
+```bash
+pip install -r requirements.txt   # includes playwright
+
+# Answers (requires a Chromium-based browser logged into Zhihu on this machine)
+python nav_crawler.py --user <URL_TOKEN> --output ./backup/answers
+# Articles
+python nav_crawler.py --user <URL_TOKEN> --kind article --output ./backup/articles
+# Options: --max N --pages N --delay-min/--delay-max --browser auto|edge|chrome
+#          --headful --keep-profile --cookie-file cookies.json
+```
+
+How it works: auto-detects installed Edge/Chrome → takes an atomic `sqlite3.backup()`
+snapshot of the cookie DB and deletes all non-Zhihu rows in place (passwords, history,
+other sites' cookies never leave the directory) → launches a throwaway temp profile
+(deleted on exit) → warms up zhihu.com (first-navigation-to-API is flagged as a
+third-party request) → navigates the API URL page by page.
+
+Key implementation notes (all hard-won):
+- Playwright's default `--use-mock-keychain` must be dropped via `ignore_default_args`,
+  otherwise copied encrypted cookies silently fail to decrypt (empty jar).
+- Cookie DB layout differs by browser (`Default/Cookies` vs `Default/Network/Cookies`) —
+  the copy must land at the same relative path the browser reads.
+- Legacy v2.x indexes (`.index_回答.json`) are auto-inherited to avoid re-crawling.
+- Cookie encryption keys are bound to *machine + OS user + browser*; on a new machine,
+  log into Zhihu once in any Chromium-based browser, or use `--cookie-file`.
+
+## Quick Start (v3 HTTP engine — expected blocked since 2026-09)
 
 ```bash
 # 1. Install dependencies

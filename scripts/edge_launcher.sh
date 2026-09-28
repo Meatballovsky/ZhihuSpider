@@ -4,7 +4,7 @@
 # Project ID: zhihubf
 # Registry:            ~/agent_projects/projects.json
 # Manifest:             ~/agent_projects/zhihubf/metadata.json
-# Version:                3.2.0
+# Version:                4.0.0
 # Status:          Stable
 # Owner:           User
 # =============================================================================
